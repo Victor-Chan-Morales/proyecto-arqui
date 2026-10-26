@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arduino Uno Dashboard | Johnny-Five</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-card: rgba(18, 25, 41, 0.82);
+      --bg-card-border: rgba(255, 255, 255, 0.08);
+      --bg-card-hover: rgba(26, 36, 58, 0.9);
+      
+      --text-main: #f1f5f9;
+      --text-muted: #8899aa;
+      --text-dim: #4b5d73;
+      
+      --accent-cyan: #00d2ff;
+      --accent-blue: #0070f3;
+      --accent-green: #10b981;
+      --accent-green-glow: rgba(16, 185, 129, 0.35);
+      --accent-red: #ef4444;
+      --accent-red-glow: rgba(239, 68, 68, 0.35);
+      --accent-amber: #f59e0b;
+      --accent-amber-glow: rgba(245, 158, 11, 0.4);
+      --arduino-teal: #00979d;
+      
+      --led-glow-color: #ffb703;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 50% -20%, #172742 0%, var(--bg-primary) 70%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      padding: 24px;
+    }
+
+    /* Container */
+    .dashboard-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--bg-card-border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .arduino-badge {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #00979d, #006064);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(0, 151, 157, 0.35);
+    }
+
+    .arduino-badge svg {
+      width: 26px;
+      height: 26px;
+      fill: #fff;
+    }
+
+    .brand h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #ffffff, #94a3b8);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--bg-card-border);
+      backdrop-filter: blur(8px);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #64748b;
+      box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+      transition: all 0.3s ease;
+    }
+
+    .status-pill.connected .status-dot {
+      background: var(--accent-green);
+      box-shadow: 0 0 10px var(--accent-green);
+      animation: pulse 2s infinite;
+    }
+
+    .status-pill.disconnected .status-dot {
+      background: var(--accent-red);
+      box-shadow: 0 0 10px var(--accent-red);
+    }
+
+    .status-pill.simulation .status-dot {
+      background: var(--accent-amber);
+      box-shadow: 0 0 10px var(--accent-amber);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.9); }
+    }
+
+    /* Grid Layout */
+    .grid-dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 24px;
+    }
+
+    /* Glass Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.25s ease, border-color 0.25s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: rgba(0, 151, 157, 0.15);
+      color: #00d2ff;
+      border: 1px solid rgba(0, 210, 255, 0.25);
+    }
+
+    /* =========================================
+       SECCIÓN 1: LED EMBEBIDO (PIN 13)
+    ========================================= */
+    .led-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 16px;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    /* Simulación visual de PCB Arduino con LED "L" */
+    .pcb-board {
+      width: 190px;
+      height: 120px;
+      background: linear-gradient(145deg, #07595c, #00363a);
+      border-radius: 12px;
+      border: 2px solid #00a4ab;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 2px 6px rgba(255, 255, 255, 0.2), 0 8px 24px rgba(0, 0, 0, 0.6);
+      user-select: none;
+    }
+
+    .pcb-trace {
+      position: absolute;
+      background: rgba(255, 215, 0, 0.2);
+      pointer-events: none;
+    }
+    .pcb-trace-1 { width: 40px; height: 2px; top: 30px; left: 16px; }
+    .pcb-trace-2 { width: 2px; height: 35px; top: 30px; left: 56px; }
+
+    .pcb-label-uno {
+      position: absolute;
+      top: 10px;
+      left: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.85);
+      letter-spacing: 1px;
+    }
+
+    .pcb-led-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      z-index: 2;
+    }
+
+    /* El diodo SMD real */
+    .smd-package {
+      width: 24px;
+      height: 38px;
+      background: #1e293b;
+      border-radius: 4px;
+      border: 1px solid #475569;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    }
+
+    /* Terminales metálicos del SMD */
+    .smd-package::before,
+    .smd-package::after {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 4px;
+      background: #cbd5e1;
+      border-radius: 1px;
+    }
+    .smd-package::before { top: -2px; }
+    .smd-package::after { bottom: -2px; }
+
+    .led-emitter {
+      width: 16px;
+      height: 18px;
+      border-radius: 3px;
+      background: #3a3220;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    /* LED ENCENDIDO */
+    .pcb-board.led-on .led-emitter {
+      background: #ffe600;
+      box-shadow: 
+        0 0 10px #ffea00,
+        0 0 25px #ffb703,
+        0 0 50px #fb8500,
+        0 0 80px rgba(251, 133, 0, 0.7);
+    }
+
+    .pcb-led-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .pcb-led-name span {
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .led-status-text {
+      margin-top: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+    }
+
+    .led-status-text.is-active {
+      color: #ffb703;
+      text-shadow: 0 0 10px rgba(255, 183, 3, 0.5);
+    }
+
+    /* Botones de Control */
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: auto;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    /* Botón Encender (Verde / Cyan) */
+    .btn-turn-on {
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 16px var(--accent-green-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-turn-on:hover {
+      background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+      box-shadow: 0 6px 22px rgba(16, 185, 129, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .btn-turn-on.active {
+      border: 2px solid #a7f3d0;
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.8);
+    }
+
+    /* Botón Apagar (Rojo) */
+    .btn-turn-off {
+      background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 16px var(--accent-red-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-turn-off:hover {
+      background: linear-gradient(135deg, #dc2626 0%, #f87171 100%);
+      box-shadow: 0 6px 22px rgba(239, 68, 68, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .btn-turn-off.active {
+      border: 2px solid #fecaca;
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.8);
+    }
+
+    .btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    /* =========================================
+       SECCIÓN 2: ENTRADA ANALÓGICA (PIN A0)
+    ========================================= */
+    .analog-main-display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    /* Radial Gauge con SVG */
+    .gauge-wrapper {
+      position: relative;
+      width: 220px;
+      height: 140px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .gauge-svg {
+      width: 220px;
+      height: 140px;
+      overflow: visible;
+    }
+
+    .gauge-bg {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.08);
+      stroke-width: 14;
+      stroke-linecap: round;
+    }
+
+    .gauge-value {
+      fill: none;
+      stroke: url(#cyan-gradient);
+      stroke-width: 14;
+      stroke-linecap: round;
+      stroke-dasharray: 283;
+      stroke-dashoffset: 283; /* 283 = 0% */
+      transition: stroke-dashoffset 0.15s ease-out;
+      filter: drop-shadow(0 0 8px rgba(0, 210, 255, 0.6));
+    }
+
+    .gauge-center-text {
+      position: absolute;
+      bottom: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .analog-raw-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1;
+    }
+
+    .analog-raw-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      margin-top: 4px;
+      text-transform: uppercase;
+    }
+
+    /* Métricas secundarias (Voltaje y Porcentaje) */
+    .analog-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .stat-box {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .stat-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+    }
+
+    /* Gráfico osciloscopio en tiempo real */
+    .chart-container {
+      margin-top: 10px;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    canvas#analogChart {
+      width: 100%;
+      height: 80px;
+      display: block;
+    }
+
+    /* =========================================
+       SECCIÓN 3: CONTROL DE SIMULACIÓN Y GUÍA
+    ========================================= */
+    .aux-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 860px) {
+      .aux-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Registro / Monitor de Logs */
+    .console-card {
+      background: rgba(5, 9, 17, 0.95);
+      border: 1px solid var(--bg-card-border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      display: flex;
+      flex-direction: column;
+      height: 240px;
+    }
+
+    .console-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .console-logs {
+      flex: 1;
+      overflow-y: auto;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .console-logs::-webkit-scrollbar {
+      width: 5px;
+    }
+    .console-logs::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+
+    .log-entry {
+      display: flex;
+      gap: 8px;
+    }
+    .log-time { color: var(--text-dim); }
+    .log-msg { color: #cbd5e1; }
+    .log-msg.success { color: var(--accent-green); }
+    .log-msg.warn { color: var(--accent-amber); }
+    .log-msg.info { color: var(--accent-cyan); }
+
+    /* Barra de simulación manual */
+    .sim-card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sim-card-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .slider-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      background: #1e293b;
+      height: 8px;
+      border-radius: 4px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0, 210, 255, 0.7);
+    }
+
+    .pinout-card {
+      background: rgba(0, 151, 157, 0.08);
+      border: 1px dashed rgba(0, 151, 157, 0.35);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 0.78rem;
+      color: #99f6e4;
+      line-height: 1.4;
+    }
+
+    .pinout-card strong {
+      color: #fff;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: auto;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      padding-top: 16px;
+    }
+
+    /* SVG Gradient Definitions */
+    .svg-defs-hidden {
+      position: absolute;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SVG defs para gradientes -->
+  <svg class="svg-defs-hidden">
+    <defs>
+      <linearGradient id="cyan-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#0070f3"/>
+        <stop offset="60%" stop-color="#00d2ff"/>
+        <stop offset="100%" stop-color="#10b981"/>
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <div class="dashboard-container">
+    
+    <!-- ENCABEZADO -->
+    <header>
+      <div class="brand">
+        <div class="arduino-badge" title="Arduino Uno">
+          <!-- Arduino infinity SVG icon -->
+          <svg viewBox="0 0 24 24">
+            <path d="M7.5 7C4.46 7 2 9.46 2 12.5S4.46 18 7.5 18c2.14 0 4-1.22 4.95-3 .95 1.78 2.81 3 4.95 3 3.04 0 5.5-2.46 5.5-5.5S20.44 7 17.4 7c-2.14 0-4 1.22-4.95 3-.95-1.78-2.81-3-4.95-3zm0 2c1.94 0 3.5 1.56 3.5 3.5S9.44 16 7.5 16 4 14.44 4 12.5 5.56 9 7.5 9zm9.9 0c1.94 0 3.5 1.56 3.5 3.5s-1.56 3.5-3.5 3.5-3.5-1.56-3.5-3.5 1.56-3.5 3.5-3.5zm-11 3v1h3v-1h-3zm10.5 0h1v-1h1v1h1v1h-1v1h-1v-1h-1v-1z"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Arduino Uno Dashboard</h1>
+          <p>Control de Actuadores y Lectura de Sensores en Tiempo Real</p>
+        </div>
+      </div>
+
+      <div class="header-status">
+        <div class="status-pill disconnected" id="connectionPill">
+          <span class="status-dot"></span>
+          <span id="connectionText">Conectando...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- GRID PRINCIPAL DE TARJETAS -->
+    <main class="grid-dashboard">
+
+      <!-- ===================================== -->
+      <!-- CARD 1: CONTROL LED EMBEBIDO (PIN 13) -->
+      <!-- ===================================== -->
+      <section class="card" aria-label="Control de LED Embebido">
+        <div class="card-header">
+          <h2 class="card-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #ffb703;">
+              <path d="M9 18h6"></path>
+              <path d="M10 22h4"></path>
+              <path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.7 3.5 5.8V17a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-2.2c2-.9 3.5-3.3 3.5-5.8a7 7 0 0 0-7-7z"></path>
+            </svg>
+            LED Embebido
+          </h2>
+          <span class="card-tag">PIN DIGITAL 13 (L)</span>
+        </div>
+
+        <!-- Escenario de la Placa Arduino con LED "L" -->
+        <div class="led-stage">
+          <div class="pcb-board" id="pcbBoard">
+            <div class="pcb-trace pcb-trace-1"></div>
+            <div class="pcb-trace pcb-trace-2"></div>
+            <div class="pcb-label-uno">ARDUINO UNO</div>
+            
+            <div class="pcb-led-container">
+              <div class="smd-package">
+                <div class="led-emitter" id="ledEmitter"></div>
+              </div>
+              <div class="pcb-led-name">L <span>(LED 13)</span></div>
+            </div>
+          </div>
+
+          <div class="led-status-text" id="ledStatusLabel">
+            <span>●</span> ESTADO: APAGADO (LOW)
+          </div>
+        </div>
+
+        <!-- Dos Botones Requeridos: ENCENDER y APAGAR -->
+        <div class="button-group">
+          <!-- Botón Encender -->
+          <button class="btn btn-turn-on" id="btnOn" type="button" title="Encender LED pin 13">
+            <svg viewBox="0 0 24 24">
+              <path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42A7.92 7.92 0 0 1 20 12c0 4.42-3.58 8-8 8s-8-3.58-8-8c0-2.48 1.13-4.7 2.91-6.17L5.49 4.41A9.957 9.957 0 0 0 2 12c0 5.52 4.48 10 10 10s10-4.48 10-10c0-2.92-1.25-5.55-3.17-7.83z"/>
+            </svg>
+            ENCENDER
+          </button>
+
+          <!-- Botón Apagar -->
+          <button class="btn btn-turn-off active" id="btnOff" type="button" title="Apagar LED pin 13">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-1.84.62-3.53 1.67-4.91l11.24 11.24A7.935 7.935 0 0 1 12 20zm6.33-3.09L7.09 5.67C8.47 4.62 10.16 4 12 4c4.41 0 8 3.59 8 8 0 1.84-.62 3.53-1.67 4.91z"/>
+            </svg>
+            APAGAR
+          </button>
+        </div>
+      </section>
+
+      <!-- ===================================== -->
+      <!-- CARD 2: ENTRADA ANALÓGICA (PIN A0)   -->
+      <!-- ===================================== -->
+      <section class="card" aria-label="Lectura de Entrada Analógica">
+        <div class="card-header">
+          <h2 class="card-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-cyan);">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+            Entrada Analógica
+          </h2>
+          <span class="card-tag">PIN ANALÓGICO A0</span>
+        </div>
+
+        <div class="analog-main-display">
+          <!-- Radial Gauge semicircular -->
+          <div class="gauge-wrapper">
+            <svg class="gauge-svg" viewBox="0 0 200 120">
+              <!-- Arco de fondo -->
+              <path class="gauge-bg" d="M 20 110 A 80 80 0 0 1 180 110" />
+              <!-- Arco con valor -->
+              <path class="gauge-value" id="gaugeArc" d="M 20 110 A 80 80 0 0 1 180 110" />
+            </svg>
+
+            <div class="gauge-center-text">
+              <span class="analog-raw-val" id="analogRawVal">0</span>
+              <span class="analog-raw-sub">ADC RAW (0-1023)</span>
+            </div>
+          </div>
+
+          <!-- Métricas secundarias -->
+          <div class="analog-stats">
+            <div class="stat-box">
+              <span class="stat-label">Tensión Eléctrica</span>
+              <span class="stat-num" id="analogVoltVal">0.00 V</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-label">Nivel Relativo</span>
+              <span class="stat-num" id="analogPercentVal">0 %</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mini osciloscopio en tiempo real -->
+        <div class="chart-container">
+          <div class="chart-header">
+            <span>OSCILOGRAMA (A0)</span>
+            <span id="chartFps">Tasa: 100ms</span>
+          </div>
+          <canvas id="analogChart" width="340" height="80"></canvas>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- FILA AUXILIAR: LOG DE EVENTOS Y MODO DE PRUEBAS -->
+    <div class="aux-grid">
+      
+      <!-- Terminal de Eventos -->
+      <div class="console-card">
+        <div class="console-header">
+          <span>REGISTRO DE COMUNICACIÓN SERIAL / WEBSOCKET</span>
+          <span style="cursor: pointer; color: var(--accent-cyan);" onclick="clearLogs()">LIMPIAR</span>
+        </div>
+        <div class="console-logs" id="consoleLogs">
+          <div class="log-entry">
+            <span class="log-time">[00:00:00]</span>
+            <span class="log-msg info">Panel inicializado. Esperando conexión con Johnny-Five...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel de Pruebas y Simulación -->
+      <div class="sim-card">
+        <div class="sim-card-title">
+          <span>Modo de Prueba / Simulación</span>
+          <button id="toggleSimBtn" class="status-pill" style="cursor:pointer;" type="button">Simulación: OFF</button>
+        </div>
+
+        <div class="slider-container">
+          <div class="slider-labels">
+            <span>0 (0V)</span>
+            <span id="sliderDisplay" style="color: var(--accent-cyan); font-weight: bold;">Simular A0: 0</span>
+            <span>1023 (5V)</span>
+          </div>
+          <input type="range" id="simSlider" min="0" max="1023" value="0" disabled>
+        </div>
+
+        <div class="pinout-card">
+          <strong>Referencia de Hardware (Arduino Uno):</strong><br>
+          • <strong>LED Embebido:</strong> Conectado internamente al Pin 13 y GND.<br>
+          • <strong>Entrada A0:</strong> Conecta el pin central de un potenciómetro a A0, y los laterales a 5V y GND.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PIE DE PÁGINA -->
+    <footer>
+      Arduino Uno & Johnny-Five Web Controller • Puerto por defecto: 8081
+    </footer>
+
+  </div>
+
+  <!-- Intento de cargar Socket.IO local del servidor Express -->
+  <script src="/socket.io/socket.io.js"></script>
+  
+  <script>
+    // Si /socket.io/socket.io.js fallara (por ejemplo si se abre directamente el HTML),
+    // se carga la versión CDN de respaldo.
+    if (typeof io === 'undefined') {
+      const cdnScript = document.createElement('script');
+      cdnScript.src = "https://cdn.socket.io/4.7.5/socket.io.min.js";
+      document.head.appendChild(cdnScript);
+    }
+
+    // ==========================================
+    // ESTADO DE LA APLICACIÓN
+    // ==========================================
+    const state = {
+      led: false,
+      analogRaw: 0,
+      analogVolt: 0.0,
+      analogPercent: 0,
+      connected: false,
+      simulationMode: false,
+      history: new Array(50).fill(0)
+    };
+
+    // Referencias a elementos del DOM
+    const btnOn = document.getElementById('btnOn');
+    const btnOff = document.getElementById('btnOff');
+    const pcbBoard = document.getElementById('pcbBoard');
+    const ledStatusLabel = document.getElementById('ledStatusLabel');
+    const connectionPill = document.getElementById('connectionPill');
+    const connectionText = document.getElementById('connectionText');
+
+    const analogRawVal = document.getElementById('analogRawVal');
+    const analogVoltVal = document.getElementById('analogVoltVal');
+    const analogPercentVal = document.getElementById('analogPercentVal');
+    const gaugeArc = document.getElementById('gaugeArc');
+    const consoleLogs = document.getElementById('consoleLogs');
+
+    const toggleSimBtn = document.getElementById('toggleSimBtn');
+    const simSlider = document.getElementById('simSlider');
+    const sliderDisplay = document.getElementById('sliderDisplay');
+    const canvas = document.getElementById('analogChart');
+    const ctx = canvas.getContext('2d');
+
+    // ==========================================
+    // LOGGING UTILS
+    // ==========================================
+    function logEvent(msg, type = '') {
+      const now = new Date();
+      const timeStr = `[${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}]`;
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+      div.innerHTML = `<span class="log-time">${timeStr}</span> <span class="log-msg ${type}">${msg}</span>`;
+      consoleLogs.appendChild(div);
+      consoleLogs.scrollTop = consoleLogs.scrollHeight;
+    }
+
+    function clearLogs() {
+      consoleLogs.innerHTML = '';
+      logEvent('Registro limpiado.', 'info');
+    }
+
+    // ==========================================
+    // ACTUALIZACIÓN DE LA UI
+    // ==========================================
+    function updateLedUI(isOn) {
+      state.led = isOn;
+      if (isOn) {
+        pcbBoard.classList.add('led-on');
+        ledStatusLabel.innerHTML = '<span>●</span> ESTADO: ENCENDIDO (HIGH)';
+        ledStatusLabel.classList.add('is-active');
+        btnOn.classList.add('active');
+        btnOff.classList.remove('active');
+      } else {
+        pcbBoard.classList.remove('led-on');
+        ledStatusLabel.innerHTML = '<span>●</span> ESTADO: APAGADO (LOW)';
+        ledStatusLabel.classList.remove('is-active');
+        btnOff.classList.add('active');
+        btnOn.classList.remove('active');
+      }
+    }
+
+    // Longitud total del arco semicircular SVG = PI * r = 3.14159 * 80 ≈ 251.3
+    const ARC_LENGTH = 251.3;
+    gaugeArc.style.strokeDasharray = ARC_LENGTH;
+    gaugeArc.style.strokeDashoffset = ARC_LENGTH;
+
+    function updateAnalogUI(rawVal) {
+      // Limitar entre 0 y 1023
+      const raw = Math.max(0, Math.min(1023, Math.round(rawVal)));
+      const voltage = (raw * (5.0 / 1023)).toFixed(2);
+      const percent = Math.round((raw / 1023) * 100);
+
+      state.analogRaw = raw;
+      state.analogVolt = voltage;
+      state.analogPercent = percent;
+
+      // Actualizar textos
+      analogRawVal.textContent = raw;
+      analogVoltVal.textContent = `${voltage} V`;
+      analogPercentVal.textContent = `${percent} %`;
+
+      // Actualizar aguja del Gauge
+      const offset = ARC_LENGTH - (percent / 100) * ARC_LENGTH;
+      gaugeArc.style.strokeDashoffset = offset;
+
+      // Actualizar histórico del osciloscopio
+      state.history.push(raw);
+      state.history.shift();
+      drawChart();
+    }
+
+    // Dibujar gráfico en Canvas
+    function drawChart() {
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      // Fondo y rejilla sutil
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      for (let y = 0; y < h; y += 20) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      // Trazar línea de datos
+      ctx.beginPath();
+      const step = w / (state.history.length - 1);
+      
+      for (let i = 0; i < state.history.length; i++) {
+        const val = state.history[i];
+        const x = i * step;
+        const y = h - (val / 1023) * (h - 10) - 5;
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+
+      ctx.strokeStyle = '#00d2ff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Gradiente inferior
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, 'rgba(0, 210, 255, 0.25)');
+      grad.addColorStop(1, 'rgba(0, 210, 255, 0.0)');
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // ==========================================
+    // SOCKET.IO & COMUNICACIÓN CON JOHNNY-FIVE
+    // ==========================================
+    let socket = null;
+
+    function initSocket() {
+      try {
+        if (typeof io !== 'undefined') {
+          socket = io();
+
+          socket.on('connect', () => {
+            state.connected = true;
+            connectionPill.className = 'status-pill connected';
+            connectionText.textContent = 'Conectado a Johnny-Five';
+            logEvent('Conectado al servidor WebSocket (Johnny-Five listo).', 'success');
+          });
+
+          socket.on('disconnect', () => {
+            state.connected = false;
+            if (!state.simulationMode) {
+              connectionPill.className = 'status-pill disconnected';
+              connectionText.textContent = 'Desconectado';
+            }
+            logEvent('Desconectado del servidor.', 'warn');
+          });
+
+          // Escuchar cambios del LED (desde el servidor o hardware)
+          socket.on('led-status', (data) => {
+            const isOn = (typeof data === 'object') ? (data.state === 'on' || data.state === 1 || data.state === true) : Boolean(data);
+            updateLedUI(isOn);
+            logEvent(`LED Embebido (Pin 13) cambiado a: ${isOn ? 'ENCENDIDO' : 'APAGADO'}`, isOn ? 'success' : '');
+          });
+
+          // Escuchar lecturas del pin analógico A0
+          socket.on('analog-data', (data) => {
+            let val = 0;
+            if (typeof data === 'number') {
+              val = data;
+            } else if (data && typeof data.raw !== 'undefined') {
+              val = data.raw;
+            } else if (data && typeof data.value !== 'undefined') {
+              val = data.value;
+            }
+            updateAnalogUI(val);
+          });
+
+          socket.on('board-status', (data) => {
+            if (data.ready) {
+              logEvent('Arduino Uno detectado y preparado correctamente.', 'success');
+            } else if (data.error) {
+              logEvent(`Error en Arduino: ${data.error}`, 'warn');
+            }
+          });
+        } else {
+          setTimeout(initSocket, 500);
+        }
+      } catch (err) {
+        console.warn('Socket.io no disponible inmediatamente:', err);
+      }
+    }
+
+    // Comandos de control hacia el servidor
+    function turnLedOn() {
+      if (socket && socket.connected) {
+        socket.emit('led-on');
+        logEvent('Enviado comando: [ENCENDER LED PIN 13]', 'info');
+      } else {
+        updateLedUI(true);
+        logEvent('Simulación local: LED encendido (Pin 13 = HIGH)', 'warn');
+      }
+    }
+
+    function turnLedOff() {
+      if (socket && socket.connected) {
+        socket.emit('led-off');
+        logEvent('Enviado comando: [APAGAR LED PIN 13]', 'info');
+      } else {
+        updateLedUI(false);
+        logEvent('Simulación local: LED apagado (Pin 13 = LOW)', 'warn');
+      }
+    }
+
+    // ==========================================
+    // EVENT LISTENERS
+    // ==========================================
+    btnOn.addEventListener('click', turnLedOn);
+    btnOff.addEventListener('click', turnLedOff);
+
+    // Atajos de teclado rápidos (1 = ON, 0 = OFF)
+    window.addEventListener('keydown', (e) => {
+      if (e.key === '1') turnLedOn();
+      if (e.key === '0') turnLedOff();
+    });
+
+    // Modo de Simulación
+    toggleSimBtn.addEventListener('click', () => {
+      state.simulationMode = !state.simulationMode;
+      simSlider.disabled = !state.simulationMode;
+      
+      if (state.simulationMode) {
+        toggleSimBtn.textContent = 'Simulación: ON';
+        toggleSimBtn.style.background = 'rgba(245, 158, 11, 0.2)';
+        toggleSimBtn.style.color = '#f59e0b';
+        connectionPill.className = 'status-pill simulation';
+        connectionText.textContent = 'Modo Simulación Activo';
+        logEvent('Modo simulación activado. Mueve el control deslizante para probar A0.', 'warn');
+      } else {
+        toggleSimBtn.textContent = 'Simulación: OFF';
+        toggleSimBtn.style.background = '';
+        toggleSimBtn.style.color = '';
+        if (state.connected) {
+          connectionPill.className = 'status-pill connected';
+          connectionText.textContent = 'Conectado a Johnny-Five';
+        } else {
+          connectionPill.className = 'status-pill disconnected';
+          connectionText.textContent = 'Desconectado';
+        }
+        logEvent('Modo simulación desactivado.', 'info');
+      }
+    });
+
+    simSlider.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      sliderDisplay.textContent = `Simular A0: ${val}`;
+      updateAnalogUI(val);
+    });
+
+    // Iniciar gráfico y conexión
+    drawChart();
+    window.addEventListener('load', () => {
+      initSocket();
+    });
+  </script>
+</body>
+</html>
